@@ -1,7 +1,9 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const dotenv = require("dotenv");
+dotenv.config();
 const User = require("../../modals/User");
-const { sanitizeUser } = require("../../services/common");
+const { sanitizeUser, sendMail } = require("../../services/common");
 const {
   successResponse,
   errorResponse,
@@ -9,11 +11,125 @@ const {
 
 const createUser = async (req, res, next) => {
   try {
-    const { email, password, ...rest } = req.body;
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return errorResponse(res, "Email already in use", 400);
+    const salt = crypto.randomBytes(16);
+    crypto.pbkdf2(
+      req.body.password,
+      salt,
+      310000,
+      32,
+      "sha256",
+      async (err, hashedPassword) => {
+        if (err) return next(errorResponse("Error hashing password", 500));
+
+        const user = new User({ ...req.body, password: hashedPassword, salt });
+        const doc = await user.save();
+
+        req.login(sanitizeUser(doc), (err) => {
+          if (err) return next(errorResponse("Login failed", 400));
+
+          const token = jwt.sign(
+            sanitizeUser(doc),
+            process.env.JWT_SECRET_KEY,
+            { expiresIn: "1h" }
+          );
+
+          res.cookie("jwt", token, {
+            expires: new Date(Date.now() + 3600000),
+            httpOnly: true,
+          });
+
+          successResponse(
+            res,
+            "User registered successfully",
+            { id: doc.id, role: doc.role },
+            201
+          );
+        });
+      }
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+const loginUser = async (req, res, next) => {
+  try {
+    const user = req.user;
+    const token = jwt.sign(sanitizeUser(user), process.env.JWT_SECRET_KEY, {
+      expiresIn: "1h",
+    });
+
+    res
+      .cookie("jwt", token, {
+        expires: new Date(Date.now() + 3600000),
+        httpOnly: true,
+      })
+      .json(
+        successResponse(res, "Login successful", {
+          id: user.id,
+          role: user.role,
+        })
+      );
+  } catch (error) {
+    next(error);
+  }
+};
+
+const logout = async (req, res, next) => {
+  try {
+    res
+      .cookie("jwt", null, { expires: new Date(Date.now()), httpOnly: true })
+      .status(200)
+      .json(successResponse("Logged out successfully"));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const checkAuth = async (req, res, next) => {
+  try {
+    if (req.user) {
+      res.json(successResponse(res, "User authenticated", req.user));
+    } else {
+      res.sendStatus(401);
     }
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resetPasswordRequest = async (req, res, next) => {
+  try {
+    console.log("req.body1");
+
+    const { email } = req.body;
+    console.log("req.body");
+    const user = await User.findOne({ email });
+
+    if (!user) return next(errorResponse("User not found", 400));
+
+    const token = crypto.randomBytes(48).toString("hex");
+    user.resetPasswordToken = token;
+    await user.save();
+
+    const resetPageLink = `http://localhost:3000/reset-password?token=${token}&email=${email}`;
+    const subject = "Reset Password Request";
+    const html = `<p>Click <a href='${resetPageLink}'>here</a> to reset your password.</p>`;
+
+    await sendMail({ to: email, subject, html });
+
+    res.json(successResponse(res, "Password reset link sent successfully"));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { email, password, token } = req.body;
+    const user = await User.findOne({ email, resetPasswordToken: token });
+
+    if (!user) return next(errorResponse("Invalid token or email", 400));
 
     const salt = crypto.randomBytes(16);
     crypto.pbkdf2(
@@ -23,93 +139,22 @@ const createUser = async (req, res, next) => {
       32,
       "sha256",
       async (err, hashedPassword) => {
-        if (err) {
-          console.error("Error hashing password:", err);
-          return next(new Error("Internal server error"));
-        }
+        if (err) return next(errorResponse("Error hashing password", 500));
 
-        try {
-          const user = new User({
-            email,
-            password: hashedPassword,
-            salt,
-            ...rest,
-          });
-          const savedUser = await user.save();
+        user.password = hashedPassword;
+        user.salt = salt;
+        user.resetPasswordToken = null;
+        await user.save();
 
-          return successResponse(res, "User created successfully", {
-            id: savedUser.id,
-            role: savedUser.role,
-          });
-        } catch (saveError) {
-          console.error("Error saving user:", saveError);
-          return next(new Error("Error saving user to the database"));
-        }
+        const subject = "Password Successfully Reset";
+        const html = `<p>Your password has been reset successfully.</p>`;
+        await sendMail({ to: email, subject, html });
+
+        res.json(successResponse(res, "Password reset successfully"));
       }
     );
-  } catch (err) {
-    console.error("Error creating user:", err);
-    return next(new Error("Bad request"));
-  }
-};
-
-const loginUser = async (req, res, next) => {
-  try {
-    const user = req.user;
-
-    if (!user) {
-      return errorResponse(res, "Invalid email or password", 401);
-    }
-
-    
-    const token = jwt.sign(sanitizeUser(user), process.env.JWT_SECRET_KEY, {
-      expiresIn: "1h",
-    });
-
-    req.login(user, { session: true }, (err) => {
-      if (err) {
-        console.error("Error creating session:", err);
-        return next(new Error("Login failed"));
-      }
-
-      res.cookie("jwt", token, {
-        expires: new Date(Date.now() + 3600000),
-        httpOnly: true,
-      });
-
-      return successResponse(res, "Login successful", {
-        id: user.id,
-        role: user.role,
-        token,
-      });
-    });
   } catch (error) {
-    console.error("Login failed:", error);
-    return next(new Error("Login failed"));
-  }
-};
-
-const logout = async (req, res, next) => {
-  try {
-    res
-      .cookie("jwt", null, { expires: new Date(Date.now()), httpOnly: true })
-      .status(200)
-      .send("Logged out successfully");
-  } catch (error) {
-    console.error("Logout failed:", error);
-    return next(new Error("Logout failed"));
-  }
-};
-
-const checkAuth = async (req, res, next) => {
-  try {
-    if (req.user) {
-      return successResponse(res, "User authenticated", req.user);
-    }
-    return errorResponse(res, "Unauthorized", 401);
-  } catch (error) {
-    console.error("Error checking authentication:", error);
-    return next(new Error("Authentication error"));
+    next(error);
   }
 };
 
@@ -118,4 +163,6 @@ module.exports = {
   loginUser,
   logout,
   checkAuth,
+  resetPasswordRequest,
+  resetPassword,
 };

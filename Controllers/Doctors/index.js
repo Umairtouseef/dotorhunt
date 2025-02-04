@@ -1,17 +1,19 @@
+const {
+  getAllDoctors,
+  getDoctorById,
+  createDoctor,
+  updateDoctor,
+  deleteDoctor,
+  getDoctorsWithPopularity,
+  getFeaturedDoctors,
+} = require("./DoctorController");
 
-const { 
-    getAllDoctors, 
-    getDoctorById, 
-    createDoctor, 
-    updateDoctor, 
-    deleteDoctor , 
-  } = require("./DoctorController"); 
-  
-  module.exports = {
-    getAllDoctors,
-    getDoctorById,
-    createDoctor,
-    updateDoctor,
-    deleteDoctor,
-  };
-  
+module.exports = {
+  getAllDoctors,
+  getDoctorById,
+  createDoctor,
+  updateDoctor,
+  deleteDoctor,
+  getDoctorsWithPopularity,
+  getFeaturedDoctors,
+};

@@ -5,9 +5,8 @@ const errorHandler = require("./utils/errorHandler");
 
 const app = express();
 
-
 const startApp = async () => {
-  await loaders(app); 
+  await loaders(app);
   app.use(errorHandler);
   console.log("Application initialized.");
 };

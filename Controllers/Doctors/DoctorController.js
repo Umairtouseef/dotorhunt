@@ -6,8 +6,6 @@ const {
   errorResponse,
 } = require("../../utils/responseHelper");
 const SearchFeatures = require("../../utils/searchFeatures");
-const getDoctorsWithPopularity = require("../../utils/popularDoctors");
-const getFeaturedDoctors = require("../../utils/featuredDoctors");
 
 const createDoctor = async (req, res, next) => {
   console.log(req.body);
@@ -19,7 +17,6 @@ const createDoctor = async (req, res, next) => {
     next(error);
   }
 };
-
 const getAllDoctors = async (req, res, next) => {
   try {
     const resultPerPage = 10;
@@ -27,28 +24,10 @@ const getAllDoctors = async (req, res, next) => {
     const searchFeature = new SearchFeatures(Doctor.find(), req.query)
       .search()
       .filter();
-    //  console.log("searchFeature",searchFeature)
     let doctors = await searchFeature.query;
-
-    // console.log("doctors",doctors)
-    console.log("Query Params:", req.query);
-
-    if(req.query.popular){
-      let doctors= await Doctor.find({})
-      console.log("me",doctors)
-      doctors = await getDoctorsWithPopularity(doctors);   
-    }
-
-    if(req.query.featured){
-      let doctor= await Doctor.find({})
-      console.log("me",doctors)
-      doctors = await getFeaturedDoctors(doctors);
-    }
-
-    let filteredDoctorsCount = doctors.length;
     searchFeature.pagination(resultPerPage);
-
-    // doctors = await searchFeature.query.clone();
+    doctors = await searchFeature.query.clone();
+    let filteredDoctorsCount = doctors.length;
 
     successResponse(res, "Doctors retrieved successfully", {
       success: true,
@@ -61,7 +40,6 @@ const getAllDoctors = async (req, res, next) => {
     next(error);
   }
 };
-
 const getDoctorById = async (req, res, next) => {
   try {
     const doctor = await Doctor.findById(req.params.id);
@@ -73,7 +51,6 @@ const getDoctorById = async (req, res, next) => {
     next(error);
   }
 };
-
 const updateDoctor = async (req, res, next) => {
   try {
     const updatedDoctor = await Doctor.findByIdAndUpdate(
@@ -89,7 +66,6 @@ const updateDoctor = async (req, res, next) => {
     next(error);
   }
 };
-
 const deleteDoctor = async (req, res, next) => {
   try {
     const deletedDoctor = await Doctor.findByIdAndDelete(req.params.id);
@@ -101,6 +77,97 @@ const deleteDoctor = async (req, res, next) => {
     next(error);
   }
 };
+const getDoctorsWithPopularity = async (req, res, next) => {
+  try {
+    let doctors = await Doctor.find({});
+    const doctorIds = doctors.map(
+      (doctor) => new mongoose.Types.ObjectId(doctor._id)
+    );
+    const activeAppointments = await Appointment.aggregate([
+      {
+        $match: {
+          doctor: { $in: doctorIds },
+          status: { $in: ["confirmed", "completed"] },
+        },
+      },
+      {
+        $group: {
+          _id: "$doctor",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    doctors = doctors.map((doctor) => {
+      const activeCount = activeAppointments.find(
+        (app) => app._id.toString() === doctor._id.toString()
+      );
+      return {
+        ...doctor.toObject(),
+        activeAppointmentsCount: activeCount ? activeCount.count : 0,
+      };
+    });
+
+    doctors.sort((a, b) => {
+      if (b.rating !== a.rating) return b.rating - a.rating;
+      if (b.reviews !== a.reviews) return b.reviews - a.reviews;
+      if (b.activeAppointmentsCount !== a.activeAppointmentsCount)
+        return b.activeAppointmentsCount - a.activeAppointmentsCount;
+      return (b.isFavourite ? 1 : 0) - (a.isFavourite ? 1 : 0);
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Top 5 doctors fetched successfully",
+      data: doctors.slice(0, 5),
+    });
+  } catch (error) {
+    console.error("Error in getDoctorsWithPopularity:", error);
+    next(error);
+  }
+};
+const getFeaturedDoctors = async (req, res, next) => {
+  try {
+    let doctors = await Doctor.find({});
+    const doctorIds = doctors.map(
+      (doctor) => new mongoose.Types.ObjectId(doctor._id)
+    );
+    const activeAppointments = await Appointment.aggregate([
+      {
+        $match: {
+          doctor: { $in: doctorIds },
+          status: { $in: ["confirmed", "completed"] },
+        },
+      },
+      {
+        $group: {
+          _id: "$doctor",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+    const appointmentCountMap = new Map();
+    activeAppointments.forEach((app) => {
+      appointmentCountMap.set(app._id.toString(), app.count);
+    });
+    doctors = doctors.map((doctor) => {
+      return {
+        ...doctor.toObject(),
+        activeAppointmentsCount:
+          appointmentCountMap.get(doctor._id.toString()) || 0,
+      };
+    });
+    doctors = doctors.filter((doctor) => doctor.isFeatured === true);
+    return res.status(200).json({
+      success: true,
+      message: "  Featured doctors fetched successfully",
+      data: doctors,
+    });
+  } catch (error) {
+    console.error("Error in getFeaturedDoctors:", error);
+    next(error);
+  }
+};
 
 module.exports = {
   createDoctor,
@@ -108,4 +175,6 @@ module.exports = {
   getDoctorById,
   updateDoctor,
   deleteDoctor,
+  getDoctorsWithPopularity,
+  getFeaturedDoctors,
 };

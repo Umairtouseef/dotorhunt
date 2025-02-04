@@ -1,5 +1,8 @@
 const DiagnosisOffer = require("../../modals/DiagnosisOffer");
-const { successResponse, errorResponse } = require("../../utils/responseHelper");
+const {
+  successResponse,
+  errorResponse,
+} = require("../../utils/responseHelper");
 
 const createDiagnosisOffer = async (req, res, next) => {
   try {
@@ -76,7 +79,6 @@ const deleteDiagnosisOffer = async (req, res, next) => {
     next(error);
   }
 };
-
 
 module.exports = {
   createDiagnosisOffer,

@@ -3,6 +3,8 @@ const {
   loginUser,
   logout,
   checkAuth,
+  resetPasswordRequest,
+  resetPassword,
 } = require("./UserController");
 
 module.exports = {
@@ -10,4 +12,6 @@ module.exports = {
   loginUser,
   logout,
   checkAuth,
+  resetPasswordRequest,
+  resetPassword,
 };

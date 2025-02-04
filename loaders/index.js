@@ -7,7 +7,6 @@ const initializeLoaders = async (app) => {
   await databaseLoader();
   expressLoader(app);
   routesLoader(app);
-
   // await initDataLoader();
   console.log("everything load");
 };

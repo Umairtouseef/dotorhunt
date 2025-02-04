@@ -5,18 +5,11 @@ const diagnosisOfferRoutes = require("./diagnosisOfferRoutes");
 const appointmentsRoutes = require("./appointmentRoutes");
 const userRoutes = require("./userRoutes");
 
-
-
-
-
-
-
 module.exports = {
   doctorRoutes,
   patientRoutes,
   medicalHistoryRoutes,
   diagnosisOfferRoutes,
   appointmentsRoutes,
-  userRoutes
-  
+  userRoutes,
 };

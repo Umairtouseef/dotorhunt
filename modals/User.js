@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema(
     password: { type: Buffer, required: true },
     role: { type: String, required: true, default: "user" },
     salt: Buffer,
+    resetPasswordToken: { type: String, default: "" },
   },
   { timestamps: true }
 );

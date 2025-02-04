@@ -2,7 +2,8 @@ const passport = require("passport");
 const { ExtractJwt, Strategy: JwtStrategy } = require("passport-jwt");
 const LocalStrategy = require("passport-local").Strategy;
 const crypto = require("crypto");
-const dotenv = require('dotenv');
+const dotenv = require("dotenv");
+dotenv.config();
 const User = require("../modals/User");
 const { cookieExtractor } = require("../services/common");
 

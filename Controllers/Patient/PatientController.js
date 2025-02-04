@@ -1,5 +1,8 @@
 const Patient = require("../../modals/Patient");
-const { successResponse, errorResponse } = require("../../utils/responseHelper");
+const {
+  successResponse,
+  errorResponse,
+} = require("../../utils/responseHelper");
 
 const createPatient = async (req, res, next) => {
   try {
@@ -48,7 +51,6 @@ const updatePatient = async (req, res, next) => {
   }
 };
 
-// Delete a patient
 const deletePatient = async (req, res, next) => {
   try {
     const deletedPatient = await Patient.findByIdAndDelete(req.params.id);

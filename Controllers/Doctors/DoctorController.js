@@ -6,9 +6,9 @@ const {
   errorResponse,
 } = require("../../utils/responseHelper");
 const SearchFeatures = require("../../utils/searchFeatures");
+const Patient = require("../../modals/Patient");
 
 const createDoctor = async (req, res, next) => {
-  console.log(req.body);
   try {
     const doctor = new Doctor(req.body);
     const savedDoctor = await doctor.save();
@@ -169,6 +169,92 @@ const getFeaturedDoctors = async (req, res, next) => {
   }
 };
 
+const getMyDoctors = async (req, res, next) => {
+  try {
+    const patient = await Patient.findById(req.params.id);
+    if (!patient) {
+      return errorResponse(res, "Patient not found", 404);
+    }
+    const doctorIds = patient.doctor;
+    if (doctorIds.length === 0) {
+      return errorResponse(res, "No doctors assigned to this patient", 404);
+    }
+    const resultPerPage = 10;
+    const doctorsCount = await Doctor.countDocuments();
+
+    const searchFeature = new SearchFeatures(Doctor.find(), req.query)
+      .search()
+      .filter();
+
+    let doctors = await searchFeature.query;
+    searchFeature.pagination(resultPerPage);
+    doctors = await searchFeature.query.clone();
+
+    const filteredDoctors = doctors.filter((doctor) =>
+      doctorIds.includes(doctor._id.toString())
+    );
+
+    if (filteredDoctors.length === 0) {
+      return errorResponse(res, "Doctors not found for this patient", 404);
+    }
+    successResponse(res, "Doctors retrieved successfully", filteredDoctors);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getDoctorsByCareer = async (req, res, next) => {
+  try {
+    const career = req.query.career;
+
+    if (!career) {
+      return errorResponse(res, "Career field is required", 400);
+    }
+
+    const resultPerPage = 10;
+
+    const searchFeature = new SearchFeatures(Doctor.find({ career }), req.query)
+      .search()
+      .filter();
+
+    let doctors = await searchFeature.query;
+    searchFeature.pagination(resultPerPage);
+    doctors = await searchFeature.query.clone();
+
+    if (doctors.length === 0) {
+      return errorResponse(res, "No doctors found for this career", 404);
+    }
+
+    successResponse(res, "Doctors retrieved successfully", doctors);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getFavoriteDoctors = async (req, res, next) => {
+  try {
+    const resultPerPage = 10;
+
+    let query = Doctor.find({ isFavourite: true });
+
+    const searchFeature = new SearchFeatures(query, req.query)
+      .search()
+      .filter();
+
+    let doctors = await searchFeature.query;
+    searchFeature.pagination(resultPerPage);
+    doctors = await searchFeature.query.clone();
+
+    if (doctors.length === 0) {
+      return errorResponse(res, "No favorite doctors found", 404);
+    }
+
+    successResponse(res, "Favorite doctors retrieved successfully", doctors);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createDoctor,
   getAllDoctors,
@@ -177,4 +263,7 @@ module.exports = {
   deleteDoctor,
   getDoctorsWithPopularity,
   getFeaturedDoctors,
+  getMyDoctors,
+  getDoctorsByCareer,
+  getFavoriteDoctors,
 };

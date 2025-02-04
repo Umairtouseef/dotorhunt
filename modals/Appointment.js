@@ -15,9 +15,9 @@ const appointmentSchema = new mongoose.Schema(
     time: { type: String, required: true },
     date: { type: String, required: true },
     location: {
-      lat: { type: String, required: true },
-      lag: { type: String, required: true },
-      name: { type: String, required: true },
+      lat: { type: String },
+      lag: { type: String },
+      name: { type: String },
     },
     status: {
       type: String,

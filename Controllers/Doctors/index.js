@@ -6,6 +6,9 @@ const {
   deleteDoctor,
   getDoctorsWithPopularity,
   getFeaturedDoctors,
+  getMyDoctors,
+  getDoctorsByCareer,
+  getFavoriteDoctors
 } = require("./DoctorController");
 
 module.exports = {
@@ -16,4 +19,7 @@ module.exports = {
   deleteDoctor,
   getDoctorsWithPopularity,
   getFeaturedDoctors,
+  getMyDoctors,
+  getDoctorsByCareer,
+  getFavoriteDoctors
 };

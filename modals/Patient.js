@@ -15,7 +15,7 @@ const patientSchema = new mongoose.Schema(
       email: { type: String, required: true },
       phone: { type: String, required: true },
     },
-    doctor: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor" },
+    doctor: [{ type: mongoose.Schema.Types.ObjectId, ref: "Doctor" }],
     status: { type: String, default: "Active" },
   },
   { timestamps: true }
